@@ -1,6 +1,8 @@
 import os
 import shutil
 import sys
+import zipfile
+import tempfile
 
 # Глобальная константа для соответствия расширения файлов к категориям
 EXTENSIONS = {
@@ -34,10 +36,26 @@ def normalize(name):
 
     return name
 
+def extract_archive(archive_path, target_folder):
+    with zipfile.ZipFile(archive_path, 'r') as zip_ref:
+        # Создаем временную папку для распакованных файлов
+        temp_dir = tempfile.mkdtemp()
+        zip_ref.extractall(temp_dir)
+
+        # Перемещаем файлы из временной папки в целевую папку "archives"
+        for root, _, files in os.walk(temp_dir):
+            for file in files:
+                source_path = os.path.join(root, file)
+                shutil.move(source_path, os.path.join(target_folder, file))
+
+        # Удаляем временную папку
+        shutil.rmtree(temp_dir)
+
 def organize_files(folder_path):
     # Создаем папки для каждой категории
     for category in EXTENSIONS.keys():
         os.makedirs(os.path.join(folder_path, category), exist_ok=True)
+    
     # Функция для перемещения файлов в соответствующие папки
     def move_file(file_path):
         file_extension = os.path.splitext(file_path)[1].lower()
@@ -72,7 +90,11 @@ def organize_files(folder_path):
         for root, _, files in os.walk(current_folder):
             for file in files:
                 file_path = os.path.join(root, file)
-                move_file(file_path)
+                if file_path.endswith('.zip') or file_path.endswith('.gz') or file_path.endswith('.tar'):
+                    # Если это архив, то распаковываем его в папку "archives"
+                    extract_archive(file_path, os.path.join(folder_path, 'Archives'))
+                else:
+                    move_file(file_path)
 
     organize_recursively(folder_path)
 
